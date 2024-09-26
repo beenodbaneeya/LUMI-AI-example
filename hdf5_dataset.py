@@ -22,6 +22,9 @@ class HDF5Dataset(Dataset):
 
     def __getitem__(self, idx):
         image = torch.tensor(self.images[idx])
+
+        #If this to_pil_image doesnot work try with the commented code below
+        #image = transforms.ToPILImage()(image)
         image = to_pil_image(image)  # Convert tensor to PIL Image
         label = torch.tensor(self.labels[idx], dtype=torch.long)
 

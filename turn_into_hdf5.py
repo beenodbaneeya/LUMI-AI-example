@@ -11,7 +11,12 @@ def create_hdf5(image_folder, output_file):
     
     with h5py.File(output_file, 'w') as h5f:
         # Create datasets for images and labels
-        images = h5f.create_dataset('images', (num_images, 3, 64, 64), dtype='f')
+
+
+        #images = h5f.create_dataset('images', (num_images, 3, 64, 64), dtype='f')
+        #The model input size for ViT model is (224*224) while cropping the image in (visualtransformer.py) while defining inside transform.compose
+        images = h5f.create_dataset('images', (num_images, 3, 224, 224), dtype='f')
+        
         labels = h5f.create_dataset('labels', (num_images,), dtype='i')
         
         for i, (img, label) in enumerate(dataset):

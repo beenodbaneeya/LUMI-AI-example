@@ -2,7 +2,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.models import vit_b_16
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import ImageFolder
 
 from hdf5_dataset import HDF5Dataset
@@ -15,7 +15,7 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-model = vit_b_16(weights='DEFAULT')
+
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -54,13 +54,47 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, epochs=10
 
         print(f'Accuracy: {100 * correct / total}%')
 
+
+#Load datasets
 with HDF5Dataset('train_images.hdf5', transform=transform) as train_dataset, \
      HDF5Dataset('val_images.hdf5', transform=transform) as val_dataset:
 
-    # train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
-    # val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
+    #subset for quick testing
+    fraction = 0.1
+    train_indices = torch.randperm(len(train_dataset))[:int(len(train_dataset) * fraction)]
+    val_indices = torch.randperm(len(val_dataset))[:int(len(val_dataset) * fraction)]
 
-    from torch.utils.data import Subset
+
+    reduced_train_dataset = Subset(train_dataset, train_indices)
+    reduced_val_dataset = Subset(val_dataset, val_indices)
+
+    #DataLoaders
+    #set pin_memory for faster data loading
+    train_loader = DataLoader(reduced_train_dataset, batch_size=32, shuffle=True, num_workers=7, pin_memory=True)
+    val_loader = DataLoader(reduced_val_dataset, batch_size=32, shuffle=False, num_workers=7, pin_memory=True)
+
+    #Model SetUp
+    model = vit_b_16(weights='DEFAULT')
+
+    #these two lines could be useful if we need to use our own dataset and based on that if we need to modify the final layer of the model.
+    #num_classes = 5  # This should be adjusted based on the dataset i.e. number of categories in our dataset. Its purpose is to define the number of output classes for the classification task.
+    #model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)  #its purpose is to replace the pre-trained model's final classification layer by creating a new fully connected layer(where the number of output features should match the dataset1s classes)
+
+
+     # Loss and optimizer
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    # Train
+    train_model(model, criterion, optimizer, train_loader, val_loader)
+    
+    # Save model
+    torch.save(model.state_dict(), 'vit_b_16_imagenet.pth')
+
+
+
+
+    """
     fraction = 0.1
     indices = torch.randperm(len(train_dataset))[:int(len(train_dataset) * fraction)]
     reduced_train_dataset = Subset(train_dataset, indices)
@@ -71,5 +105,7 @@ with HDF5Dataset('train_images.hdf5', transform=transform) as train_dataset, \
     val_loader = DataLoader(reduced_val_dataset, batch_size=32, shuffle=True, num_workers=7)
 
     train_model(model, criterion, optimizer, train_loader, val_loader)
+    torch.save(model.state_dict(), 'vit_b_16_imagenet.pth')
+    """
 
-torch.save(model.state_dict(), 'vit_b_16_imagenet.pth')
+
